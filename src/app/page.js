@@ -36,14 +36,28 @@ export default function Home() {
   };
 
   const loadMyCourses = async () => {
-    const resp = await axios.get("/api/enrollment", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setMyCourses(resp.data.courses);
+    setLoadingMyCourses(true); // เริ่มต้นโหลดข้อมูล
+    try {
+      const resp = await axios.get("/api/enrollment", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMyCourses(resp.data.courses);
+    } catch (error) {
+      console.error("Error loading courses:", error);
+    } finally {
+      setLoadingMyCourses(false); // เมื่อโหลดเสร็จหรือเกิดข้อผิดพลาด ให้หยุดโหลด
+    }
   };
 
   useEffect(() => {
     loadCourses();
+
+    const token = localStorage.getItem("token");
+    const username = localStorage.getItem("username");
+    if (token && username) {
+      setToken(token);
+      setAuthenUsername(username);
+    }
   }, []);
 
   useEffect(() => {
@@ -54,15 +68,20 @@ export default function Home() {
 
   const login = async () => {
     try {
+      setLoadingLogin(true); // เริ่มต้นกระบวนการ Login
       const resp = await axios.post("/api/user/login", { username, password });
       setToken(resp.data.token);
       setAuthenUsername(resp.data.username);
       setUsername("");
       setPassword("");
+      localStorage.setItem("token", resp.data.token);
+      localStorage.setItem("username", resp.data.username);
     } catch (error) {
       if (error.response.data) {
         alert(error.response.data.message);
       }
+    } finally {
+      setLoadingLogin(false); // เมื่อคำขอ API เสร็จสมบูรณ์ หรือเกิดข้อผิดพลาด ให้หยุดกระบวนการ Login
     }
   };
 
@@ -70,6 +89,9 @@ export default function Home() {
     setAuthenUsername(null);
     setToken(null);
     setMyCourses(null);
+
+    localStorage.removeItem("token");
+    localStorage.removeItem("username");
   };
 
   return (
@@ -105,7 +127,10 @@ export default function Home() {
                 onChange={(e) => setPassword(e.target.value)}
                 value={password}
               />
-              <Button onClick={login}>Login</Button>
+              <Button onClick={login} disabled={loadingLogin}>
+                {loadingLogin ? "Login..." : "Login"}{" "}
+                {/* แสดง "Login" หรือ "Login..." ตามสถานะ loading */}
+              </Button>
             </Group>
           )}
           {authenUsername && (
@@ -124,18 +149,17 @@ export default function Home() {
           {!authenUsername && (
             <Text color="dimmed">Please login to see your course(s)</Text>
           )}
-          {authenUsername &&
-            myCourses &&
-            myCourses.map((course) => (
-              <Text key={course.courseNo}>
-                {course.courseNo} - {course.title}
-              </Text>
-            ))}
-
-          {/* Do something with below loader!! */}
-          <Loader variant="dots" />
+          {loadingMyCourses && <Loader variant="dots" />}{" "}
+          {/* แสดง Loader ถ้ากำลังโหลด */}
+          {authenUsername && myCourses && myCourses.length > 0
+            ? myCourses.map((course) => (
+                <Text key={course.courseNo}>
+                  {course.courseNo} - {course.title}
+                </Text>
+              ))
+            : null}
         </Paper>
-        <Footer year="2023" fullName="Chayanin Suatap" studentId="650610560" />
+        <Footer year="2023" fullName="Tiger Tanner" studentId="650612083" />
       </Stack>
     </Container>
   );
